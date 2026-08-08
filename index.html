@@ -272,11 +272,34 @@
             resize: vertical;
             min-height: 60px;
         }
+        .form-group input[type="file"] {
+            padding: 8px;
+            border: 1px dashed #d1d9e6;
+            background: #f8fafc;
+        }
+        .form-group input[type="file"]:hover {
+            border-color: #3b82f6;
+            background: #f1f5f9;
+        }
         .form-actions {
             display: flex;
             gap: 12px;
             margin-top: 16px;
             flex-wrap: wrap;
+        }
+        .file-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: #eef2ff;
+            border-radius: 6px;
+            color: #4338ca;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .file-link:hover {
+            background: #dbeafe;
         }
 
         /* ---------- HIDDEN ---------- */
@@ -409,6 +432,24 @@
             editingId: null,
             editingType: null,
         };
+
+        // ================================================================
+        //  JENIS TUGAS (updated)
+        // ================================================================
+        const JENIS_TUGAS = [
+            'Tugas Biasa',
+            'Tugas Besar',
+            'Project',
+            'Presentasi',
+            'Ujian',
+            'Praktikum',
+            'Bimbingan',
+            'Skripsi/Tugas Akhir',
+            'Magang/PKL',
+            'KKN',
+            'Laporan',
+            'Lainnya'
+        ];
 
         function saveAll() {
             DB.set('mahasiswa', state.mahasiswa);
@@ -808,6 +849,11 @@
                 `<option value="${k.id}" ${data && data.target==='Kelompok' && data.targetId===k.id ? 'selected':''}>${k.nama}</option>`
             ).join('');
 
+            // Gunakan JENIS_TUGAS dari konstanta global
+            const jenisOptions = JENIS_TUGAS.map(j =>
+                `<option value="${j}" ${data && data.jenis===j ? 'selected':''}>${j}</option>`
+            ).join('');
+
             const showExtra = data && data.jenis === 'Tugas Besar';
 
             container.innerHTML = `
@@ -817,9 +863,7 @@
                 <div class="form-group"><label>Judul</label><input id="f_t_judul" value="${data ? data.judul : ''}" /></div>
                 <div class="form-group"><label>Jenis</label>
                   <select id="f_t_jenis" onchange="toggleExtraTugas()">
-                    ${['Tugas Biasa','Tugas Besar','Project','Presentasi','Ujian','Praktikum','Lainnya'].map(j =>
-                      `<option value="${j}" ${data && data.jenis===j ? 'selected':''}>${j}</option>`
-                    ).join('')}
+                    ${jenisOptions}
                   </select>
                 </div>
                 <div class="form-group"><label>Mata Kuliah</label><select id="f_t_matkul">${mkOpt}</select></div>
@@ -940,7 +984,7 @@
             render('tugas');
         }
 
-        // ---------- PROGRESS ----------
+        // ---------- PROGRESS (with file upload) ----------
         function renderProgress(el) {
             let html = `
             <div class="page-title">📈 Progress</div>
@@ -949,7 +993,7 @@
               <div class="card-header"><h3>Daftar Progress</h3></div>
               ${state.progress.length === 0 ? '<p class="text-muted">Belum ada progress.</p>' : `
               <table>
-                <thead><tr><th>Tugas</th><th>Tahapan</th><th>Persen</th><th>Status</th><th>Catatan</th><th>Aksi</th></tr></thead>
+                <thead><tr><th>Tugas</th><th>Tahapan</th><th>Persen</th><th>Status</th><th>Catatan</th><th>Dokumen</th><th>Aksi</th></tr></thead>
                 <tbody>
                   ${state.progress.map(p => {
                     const t = findTugas(p.tugasId);
@@ -959,6 +1003,7 @@
                       <td>${p.persen}%</td>
                       <td><span class="badge ${p.status === 'Selesai' ? 'badge-green' : 'badge-yellow'}">${p.status || 'Proses'}</span></td>
                       <td>${p.catatan || '-'}</td>
+                      <td>${p.fileName ? `<a href="${p.fileData || '#'}" class="file-link" target="_blank">📎 ${p.fileName}</a>` : '-'}</td>
                       <td>
                         <button class="btn btn-sm btn-primary" onclick="showFormProgress('${p.id}')">✎</button>
                         <button class="btn btn-sm btn-danger" onclick="hapusProgress('${p.id}')">✕</button>
@@ -995,6 +1040,11 @@
                   <select id="f_p_status"><option value="Proses" ${data && data.status==='Proses' ? 'selected':''}>Proses</option><option value="Selesai" ${data && data.status==='Selesai' ? 'selected':''}>Selesai</option></select>
                 </div>
                 <div class="form-group full"><label>Catatan / Bukti</label><textarea id="f_p_catatan">${data ? data.catatan : ''}</textarea></div>
+                <div class="form-group full"><label>📎 Upload Dokumentasi</label>
+                  <input type="file" id="f_p_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip" />
+                  ${data && data.fileName ? `<p style="font-size:13px;color:#64748b;margin-top:4px;">File saat ini: <strong>${data.fileName}</strong></p>` : ''}
+                  <small style="color:#64748b;">Upload file sebagai bukti dokumentasi (PDF, DOC, JPG, PNG, ZIP)</small>
+                </div>
               </div>
               <div class="form-actions">
                 <button class="btn btn-success" onclick="simpanProgress('${id || ''}')">Simpan</button>
@@ -1010,13 +1060,55 @@
             const persen = parseInt(document.getElementById('f_p_persen').value) || 0;
             const status = document.getElementById('f_p_status').value;
             const catatan = document.getElementById('f_p_catatan').value.trim();
+            const fileInput = document.getElementById('f_p_file');
+            
             if (!tugasId) { alert('Pilih tugas.'); return; }
 
+            // Proses file
+            let fileName = null;
+            let fileData = null;
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                fileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fileData = e.target.result;
+                    // Simpan setelah file selesai dibaca
+                    saveProgressData(id, tugasId, tahapan, persen, status, catatan, fileName, fileData);
+                };
+                reader.readAsDataURL(file);
+                return; // Tunggu sampai file selesai dibaca
+            } else {
+                // Jika tidak ada file baru, pertahankan data lama
+                if (id) {
+                    const existing = state.progress.find(p => p.id === id);
+                    if (existing) {
+                        fileName = existing.fileName || null;
+                        fileData = existing.fileData || null;
+                    }
+                }
+                saveProgressData(id, tugasId, tahapan, persen, status, catatan, fileName, fileData);
+            }
+        }
+
+        function saveProgressData(id, tugasId, tahapan, persen, status, catatan, fileName, fileData) {
             if (id) {
                 const p = state.progress.find(x => x.id === id);
-                if (p) { Object.assign(p, { tugasId, tahapan, persen, status, catatan }); }
+                if (p) { 
+                    Object.assign(p, { tugasId, tahapan, persen, status, catatan });
+                    if (fileName) { p.fileName = fileName; p.fileData = fileData; }
+                }
             } else {
-                state.progress.push({ id: genId(), tugasId, tahapan, persen, status, catatan });
+                state.progress.push({ 
+                    id: genId(), 
+                    tugasId, 
+                    tahapan, 
+                    persen, 
+                    status, 
+                    catatan,
+                    fileName: fileName || null,
+                    fileData: fileData || null
+                });
             }
             saveAll();
             render('progress');
@@ -1029,7 +1121,7 @@
             render('progress');
         }
 
-        // ---------- BIMBINGAN ----------
+        // ---------- BIMBINGAN (with file upload) ----------
         function renderBimbingan(el) {
             let html = `
             <div class="flex-between">
@@ -1039,7 +1131,7 @@
             <div class="card">
               ${state.bimbingan.length === 0 ? '<p class="text-muted">Belum ada bimbingan.</p>' : `
               <table>
-                <thead><tr><th>Tanggal</th><th>Tugas</th><th>Progress</th><th>Pembahasan</th><th>Status</th><th>Aksi</th></tr></thead>
+                <thead><tr><th>Tanggal</th><th>Tugas</th><th>Progress</th><th>Pembahasan</th><th>Status</th><th>Dokumen</th><th>Aksi</th></tr></thead>
                 <tbody>
                   ${state.bimbingan.map(b => {
                     const t = findTugas(b.tugasId);
@@ -1049,6 +1141,7 @@
                       <td>${b.progress}%</td>
                       <td>${b.pembahasan || '-'}</td>
                       <td><span class="badge ${b.status === 'Selesai' ? 'badge-green' : 'badge-yellow'}">${b.status || 'Proses'}</span></td>
+                      <td>${b.fileName ? `<a href="${b.fileData || '#'}" class="file-link" target="_blank">📎 ${b.fileName}</a>` : '-'}</td>
                       <td>
                         <button class="btn btn-sm btn-primary" onclick="showFormBimbingan('${b.id}')">✎</button>
                         <button class="btn btn-sm btn-danger" onclick="hapusBimbingan('${b.id}')">✕</button>
@@ -1083,6 +1176,11 @@
                 </div>
                 <div class="form-group full"><label>Pembahasan</label><textarea id="f_b_pembahasan">${data ? data.pembahasan : ''}</textarea></div>
                 <div class="form-group full"><label>Catatan Dosen</label><textarea id="f_b_catatan">${data ? data.catatan : ''}</textarea></div>
+                <div class="form-group full"><label>📎 Upload Dokumentasi</label>
+                  <input type="file" id="f_b_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip" />
+                  ${data && data.fileName ? `<p style="font-size:13px;color:#64748b;margin-top:4px;">File saat ini: <strong>${data.fileName}</strong></p>` : ''}
+                  <small style="color:#64748b;">Upload file dokumentasi bimbingan (PDF, DOC, JPG, PNG, ZIP)</small>
+                </div>
                 <div class="form-group"><label>Tindak Lanjut</label><input id="f_b_tindak" value="${data ? data.tindak : ''}" /></div>
                 <div class="form-group"><label>Deadline Follow-up</label><input type="date" id="f_b_deadline" value="${data ? data.deadline : ''}" /></div>
               </div>
@@ -1103,14 +1201,56 @@
             const catatan = document.getElementById('f_b_catatan').value.trim();
             const tindak = document.getElementById('f_b_tindak').value.trim();
             const deadline = document.getElementById('f_b_deadline').value;
+            const fileInput = document.getElementById('f_b_file');
 
             if (!tugasId || !tanggal) { alert('Tugas dan Tanggal wajib diisi.'); return; }
 
+            // Proses file
+            let fileName = null;
+            let fileData = null;
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                fileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fileData = e.target.result;
+                    saveBimbinganData(id, tugasId, tanggal, progress, status, pembahasan, catatan, tindak, deadline, fileName, fileData);
+                };
+                reader.readAsDataURL(file);
+                return;
+            } else {
+                if (id) {
+                    const existing = state.bimbingan.find(b => b.id === id);
+                    if (existing) {
+                        fileName = existing.fileName || null;
+                        fileData = existing.fileData || null;
+                    }
+                }
+                saveBimbinganData(id, tugasId, tanggal, progress, status, pembahasan, catatan, tindak, deadline, fileName, fileData);
+            }
+        }
+
+        function saveBimbinganData(id, tugasId, tanggal, progress, status, pembahasan, catatan, tindak, deadline, fileName, fileData) {
             if (id) {
                 const b = state.bimbingan.find(x => x.id === id);
-                if (b) { Object.assign(b, { tugasId, tanggal, progress, status, pembahasan, catatan, tindak, deadline }); }
+                if (b) { 
+                    Object.assign(b, { tugasId, tanggal, progress, status, pembahasan, catatan, tindak, deadline });
+                    if (fileName) { b.fileName = fileName; b.fileData = fileData; }
+                }
             } else {
-                state.bimbingan.push({ id: genId(), tugasId, tanggal, progress, status, pembahasan, catatan, tindak, deadline });
+                state.bimbingan.push({ 
+                    id: genId(), 
+                    tugasId, 
+                    tanggal, 
+                    progress, 
+                    status, 
+                    pembahasan, 
+                    catatan, 
+                    tindak, 
+                    deadline,
+                    fileName: fileName || null,
+                    fileData: fileData || null
+                });
             }
             saveAll();
             render('bimbingan');
