@@ -38,6 +38,7 @@
         .badge-yellow{background:#fef9c3;color:#a16207}
         .badge-red{background:#fee2e2;color:#b91c1c}
         .badge-gray{background:#e2e8f0;color:#475569}
+        .badge-purple{background:#ede9fe;color:#7c3aed}
         .progress-wrap{display:flex;align-items:center;gap:8px}
         .progress-bar{flex:1;height:6px;background:#e2e8f0;border-radius:10px;overflow:hidden;min-width:60px}
         .progress-bar .fill{height:100%;background:#3b82f6;border-radius:10px;transition:.3s}
@@ -55,32 +56,17 @@
         .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
         .text-muted{color:#64748b;font-size:13px}
         .hidden{display:none!important}
-        
-        /* CHART STYLES */
         .chart-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:20px}
         .chart-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center}
         .chart-card h4{font-size:13px;color:#64748b;margin-bottom:8px}
-        .chart-value{font-size:28px;font-weight:700;color:#1e293b}
-        .chart-bar-wrap{background:#f1f5f9;border-radius:8px;height:20px;overflow:hidden;margin-top:8px}
-        .chart-bar-wrap .bar{height:100%;border-radius:8px;transition:width 1s ease}
-        .bar-blue{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
-        .bar-green{background:linear-gradient(90deg,#22c55e,#4ade80)}
-        .bar-yellow{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-        .bar-red{background:linear-gradient(90deg,#ef4444,#f87171)}
-        .bar-purple{background:linear-gradient(90deg,#8b5cf6,#a78bfa)}
-        
-        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px}
         .stat-item{background:#fff;border-radius:10px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
         .stat-item .num{font-size:24px;font-weight:700}
         .stat-item .label{font-size:12px;color:#64748b;margin-top:2px}
         .stat-item .icon{font-size:20px}
-        
-        /* Donut chart sederhana pakai SVG */
         .donut-wrap{display:flex;justify-content:center;align-items:center;gap:20px;flex-wrap:wrap}
         .donut-svg{width:140px;height:140px;transform:rotate(-90deg)}
         .donut-svg circle{fill:none;stroke-width:16}
-        .donut-label{font-size:14px;font-weight:600;text-align:center}
-        
         @media(max-width:768px){
             .sidebar{width:56px;padding:10px 6px}
             .sidebar .brand{font-size:14px;text-align:center}
@@ -157,7 +143,7 @@ function render(page){
 }
 
 // ============================================================
-//  DASHBOARD WITH CHARTS
+//  DASHBOARD
 // ============================================================
 function dashboard(el){
     const totalMhs=state.mahasiswa.length;
@@ -168,21 +154,18 @@ function dashboard(el){
     const draft=state.tugas.filter(t=>t.status==='Draft').length;
     const avg=totalTgs?Math.round(state.tugas.reduce((s,t)=>s+getProgress(t.id).pct,0)/totalTgs):0;
     
-    // Hitung progress per jenis tugas untuk donut
     const jenisCount = {};
     state.tugas.forEach(t=>{jenisCount[t.jenis]=(jenisCount[t.jenis]||0)+1});
     const jenisLabels = Object.keys(jenisCount);
     const jenisValues = Object.values(jenisCount);
     const colors = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#d946ef'];
     
-    // Data untuk chart bar (progress per tugas)
     const top5 = state.tugas.slice(-5).reverse().map(t=>({label:t.judul.substring(0,15),value:getProgress(t.id).pct}));
     
     el.innerHTML=`
     <div class="page-title">📊 Dashboard</div>
     <div class="page-sub">Ringkasan aktivitas akademik</div>
     
-    <!-- STATS CARDS -->
     <div class="stats-grid">
         <div class="stat-item"><div class="icon">👨‍🎓</div><div class="num">${totalMhs}</div><div class="label">Mahasiswa</div></div>
         <div class="stat-item"><div class="icon">📝</div><div class="num">${totalTgs}</div><div class="label">Total Tugas</div></div>
@@ -191,9 +174,7 @@ function dashboard(el){
         <div class="stat-item"><div class="icon">📈</div><div class="num">${avg}%</div><div class="label">Rata-rata Progress</div></div>
     </div>
     
-    <!-- CHARTS ROW -->
     <div class="chart-container">
-        <!-- Donut Chart - Jenis Tugas -->
         <div class="chart-card">
             <h4>📊 Jenis Tugas</h4>
             ${totalTgs===0?'<p class="text-muted" style="padding:20px 0;">Belum ada data</p>':`
@@ -202,8 +183,6 @@ function dashboard(el){
                     ${jenisLabels.map((label,i)=>{
                         const pct = (jenisValues[i]/totalTgs)*100;
                         const circumference = 2 * Math.PI * 44;
-                        const offset = circumference - (pct/100)*circumference;
-                        const prevOffset = jenisLabels.slice(0,i).reduce((s,_,idx)=>s+(jenisValues[idx]/totalTgs)*circumference,0);
                         return `<circle cx="60" cy="60" r="44" 
                             stroke="${colors[i%colors.length]}" 
                             stroke-dasharray="${circumference}" 
@@ -223,7 +202,6 @@ function dashboard(el){
             </div>`}
         </div>
         
-        <!-- Progress Bar Chart -->
         <div class="chart-card">
             <h4>📈 Progress 5 Tugas Terakhir</h4>
             ${top5.length===0?'<p class="text-muted" style="padding:20px 0;">Belum ada tugas</p>':`
@@ -243,7 +221,6 @@ function dashboard(el){
         </div>
     </div>
     
-    <!-- Status Ringkasan -->
     <div class="chart-container">
         <div class="chart-card">
             <h4>📌 Status Tugas</h4>
@@ -270,8 +247,9 @@ function dashboard(el){
                 <div style="margin-top:6px;">
                     ${state.bimbingan.slice(-3).reverse().map(b=>{
                         const t=findTugas(b.tugasId);
+                        const label = t ? t.judul.substring(0,20) : (b.judulBimbingan || 'Bimbingan Umum');
                         return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
-                            <span>${t?t.judul.substring(0,20):'(dihapus)'}</span>
+                            <span>${label}</span>
                             <span>${b.tanggal}</span>
                             <span class="badge ${b.status==='Selesai'?'badge-green':'badge-yellow'}">${b.status||'Proses'}</span>
                         </div>`;
@@ -281,18 +259,10 @@ function dashboard(el){
         </div>
     </div>
     
-    <!-- TUGAS TERBARU TABLE -->
     <div class="card"><div class="card-header"><h3>📌 Tugas Terbaru</h3></div>
     ${state.tugas.length===0?'<p class="text-muted">Belum ada tugas.</p>':`
     <table><thead><tr><th>Judul</th><th>Jenis</th><th>Target</th><th>Progress</th><th>Status</th></tr></thead><tbody>
     ${state.tugas.slice(-5).reverse().map(t=>{const p=getProgress(t.id);return`<tr><td><strong>${t.judul}</strong></td><td><span class="badge badge-blue">${t.jenis}</span></td><td>${namaTarget(t)}</td><td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:${p.pct}%"></div></div><span class="progress-label">${p.pct}%</span></div></td><td><span class="badge ${t.status==='Selesai'?'badge-green':'badge-yellow'}">${t.status||'Aktif'}</span></td></tr>`}).join('')}
-    </tbody></table>`}</div>
-    
-    <!-- BIMBINGAN TERAKHIR -->
-    <div class="card"><div class="card-header"><h3>🧑‍🏫 Bimbingan Terakhir</h3></div>
-    ${state.bimbingan.length===0?'<p class="text-muted">Belum ada bimbingan.</p>':`
-    <table><thead><tr><th>Tanggal</th><th>Tugas</th><th>Progress</th><th>Status</th></tr></thead><tbody>
-    ${state.bimbingan.slice(-5).reverse().map(b=>{const t=findTugas(b.tugasId);return`<tr><td>${b.tanggal}</td><td>${t?t.judul:'(dihapus)'}</td><td>${b.progress}%</td><td><span class="badge ${b.status==='Selesai'?'badge-green':'badge-yellow'}">${b.status||'Proses'}</span></td></tr>`}).join('')}
     </tbody></table>`}</div>`;
 }
 
@@ -375,7 +345,7 @@ window.tambahMatkul=function(){const n=prompt('Nama Mata Kuliah:');if(n&&n.trim(
 window.hapusMatkul=function(n){if(!confirm(`Hapus "${n}"?`))return;state.matakuliah=state.matakuliah.filter(m=>m!==n);saveAll();render('matakuliah')};
 
 // ============================================================
-//  TUGAS - FIXED BUG
+//  TUGAS
 // ============================================================
 function tugas(el){
     el.innerHTML=`
@@ -388,7 +358,6 @@ function tugas(el){
 }
 
 window.showFormTugas=function(id){
-    // RESET container dulu
     const c=document.getElementById('formTugasContainer');
     const d=id?findTugas(id):null;
     
@@ -513,7 +482,6 @@ window.hapusTugas=function(id){
     if(!confirm('Hapus tugas?')) return;
     state.tugas=state.tugas.filter(t=>t.id!==id);
     state.progress=state.progress.filter(p=>p.tugasId!==id);
-    state.bimbingan=state.bimbingan.filter(b=>b.tugasId!==id);
     saveAll();
     render('tugas');
 };
@@ -564,51 +532,160 @@ function saveProgressData(id,tugasId,tahapan,persen,status,catatan,fileName,file
 window.hapusProgress=function(id){if(!confirm('Hapus progress?'))return;state.progress=state.progress.filter(p=>p.id!==id);saveAll();render('progress')};
 
 // ============================================================
-//  BIMBINGAN - FIXED BUG
+//  BIMBINGAN - FIXED: Bisa berdiri sendiri atau terhubung ke tugas
 // ============================================================
 function bimbingan(el){
     el.innerHTML=`
-    <div class="flex-between"><div><div class="page-title">🧑‍🏫 Bimbingan</div><div class="page-sub">Catatan bimbingan</div></div><button class="btn btn-primary" onclick="showFormBimbingan()">+ Tambah</button></div>
+    <div class="flex-between"><div><div class="page-title">🧑‍🏫 Bimbingan</div><div class="page-sub">Catatan bimbingan (bisa terkait tugas atau umum)</div></div><button class="btn btn-primary" onclick="showFormBimbingan()">+ Tambah</button></div>
     <div class="card">${state.bimbingan.length===0?'<p class="text-muted">Belum ada bimbingan.</p>':`
-    <table><thead><tr><th>Tanggal</th><th>Tugas</th><th>Progress</th><th>Status</th><th>Dokumen</th><th>Aksi</th></tr></thead><tbody>
-    ${state.bimbingan.map(b=>{const t=findTugas(b.tugasId);return`<tr><td>${b.tanggal}</td><td>${t?t.judul:'(dihapus)'}</td><td>${b.progress}%</td><td><span class="badge ${b.status==='Selesai'?'badge-green':'badge-yellow'}">${b.status||'Proses'}</span></td><td>${b.fileName?`<a href="${b.fileData||'#'}" class="file-link" target="_blank">📎 ${b.fileName}</a>`:'-'}</td><td><button class="btn btn-sm btn-primary" onclick="showFormBimbingan('${b.id}')">✎</button><button class="btn btn-sm btn-danger" onclick="hapusBimbingan('${b.id}')">✕</button></td></tr>`}).join('')}
+    <table><thead><tr><th>Tanggal</th><th>Judul Bimbingan</th><th>Tugas Terkait</th><th>Progress</th><th>Status</th><th>Dokumen</th><th>Aksi</th></tr></thead><tbody>
+    ${state.bimbingan.map(b=>{
+        const t=findTugas(b.tugasId);
+        const tugasLabel = t ? t.judul : (b.tugasId ? '(tugas dihapus)' : '-');
+        return`<tr>
+            <td>${b.tanggal}</td>
+            <td><strong>${b.judulBimbingan || 'Bimbingan'}</strong></td>
+            <td>${tugasLabel}</td>
+            <td>${b.progress}%</td>
+            <td><span class="badge ${b.status==='Selesai'?'badge-green':'badge-yellow'}">${b.status||'Proses'}</span></td>
+            <td>${b.fileName?`<a href="${b.fileData||'#'}" class="file-link" target="_blank">📎 ${b.fileName}</a>`:'-'}</td>
+            <td><button class="btn btn-sm btn-primary" onclick="showFormBimbingan('${b.id}')">✎</button><button class="btn btn-sm btn-danger" onclick="hapusBimbingan('${b.id}')">✕</button></td>
+        </tr>`;
+    }).join('')}
     </tbody></table>`}</div>
     <div id="formBimbinganContainer"></div>`;
 }
+
 window.showFormBimbingan=function(id){
-    const d=id?state.bimbingan.find(b=>b.id===id):null,c=document.getElementById('formBimbinganContainer');
-    const tugasOpt=state.tugas.map(t=>`<option value="${t.id}" ${d&&d.tugasId===t.id?'selected':''}>${t.judul}</option>`).join('');
-    c.innerHTML=`<div class="card" style="border:2px solid #3b82f6;margin-top:16px;"><h3>${d?'✎ Edit':'➕ Tambah'} Bimbingan</h3><div class="form-grid">
-    <div class="form-group"><label>Tugas</label><select id="fb_tugas">${tugasOpt}</select></div>
-    <div class="form-group"><label>Tanggal</label><input type="date" id="fb_tanggal" value="${d?d.tanggal:''}"/></div>
-    <div class="form-group"><label>Progress (%)</label><input type="number" id="fb_progress" value="${d?d.progress:0}" min="0" max="100"/></div>
-    <div class="form-group"><label>Status</label><select id="fb_status"><option value="Proses" ${d&&d.status==='Proses'?'selected':''}>Proses</option><option value="Revisi" ${d&&d.status==='Revisi'?'selected':''}>Revisi</option><option value="Selesai" ${d&&d.status==='Selesai'?'selected':''}>Selesai</option></select></div>
-    <div class="form-group full"><label>Pembahasan</label><textarea id="fb_pembahasan">${d?d.pembahasan:''}</textarea></div>
-    <div class="form-group full"><label>Catatan Dosen</label><textarea id="fb_catatan">${d?d.catatan:''}</textarea></div>
-    <div class="form-group full"><label>📎 Upload Dokumentasi</label><input type="file" id="fb_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"/>${d&&d.fileName?`<p style="font-size:12px;color:#64748b;margin-top:4px;">File: <strong>${d.fileName}</strong></p>`:''}<small style="color:#64748b;">PDF, DOC, JPG, PNG, ZIP</small></div>
-    <div class="form-group"><label>Tindak Lanjut</label><input id="fb_tindak" value="${d?d.tindak:''}"/></div>
-    <div class="form-group"><label>Deadline Follow-up</label><input type="date" id="fb_deadline" value="${d?d.deadline:''}"/></div>
-    </div><div class="form-actions"><button class="btn btn-success" onclick="simpanBimbingan('${id||''}')">Simpan</button><button class="btn" onclick="document.getElementById('formBimbinganContainer').innerHTML=''">Batal</button></div></div>`;
+    const d=id?state.bimbingan.find(b=>b.id===id):null;
+    const c=document.getElementById('formBimbinganContainer');
+    
+    // Options untuk tugas (dengan opsi kosong untuk bimbingan umum)
+    const tugasOpt = `<option value="">-- Tidak terkait tugas --</option>` + 
+        state.tugas.map(t=>`<option value="${t.id}" ${d&&d.tugasId===t.id?'selected':''}>${t.judul}</option>`).join('');
+    
+    c.innerHTML=`
+    <div class="card" style="border:2px solid #3b82f6;margin-top:16px;">
+        <h3>${d?'✎ Edit':'➕ Tambah'} Bimbingan</h3>
+        <div class="form-grid">
+            <div class="form-group"><label>Judul Bimbingan *</label>
+                <input id="fb_judul" value="${d?d.judulBimbingan:''}" placeholder="Misal: Bimbingan TA, Konsultasi PKL"/>
+            </div>
+            <div class="form-group"><label>Tanggal *</label>
+                <input type="date" id="fb_tanggal" value="${d?d.tanggal:''}"/>
+            </div>
+            <div class="form-group"><label>Tugas Terkait (opsional)</label>
+                <select id="fb_tugas">
+                    ${tugasOpt}
+                </select>
+                <small style="color:#64748b;">Kosongkan jika bimbingan umum/tidak terkait tugas tertentu</small>
+            </div>
+            <div class="form-group"><label>Progress (%)</label>
+                <input type="number" id="fb_progress" value="${d?d.progress:0}" min="0" max="100"/>
+            </div>
+            <div class="form-group"><label>Status</label>
+                <select id="fb_status">
+                    <option value="Proses" ${d&&d.status==='Proses'?'selected':''}>Proses</option>
+                    <option value="Revisi" ${d&&d.status==='Revisi'?'selected':''}>Revisi</option>
+                    <option value="Selesai" ${d&&d.status==='Selesai'?'selected':''}>Selesai</option>
+                </select>
+            </div>
+            <div class="form-group full"><label>Pembahasan</label>
+                <textarea id="fb_pembahasan" placeholder="Apa yang dibahas dalam bimbingan...">${d?d.pembahasan:''}</textarea>
+            </div>
+            <div class="form-group full"><label>Catatan Dosen</label>
+                <textarea id="fb_catatan" placeholder="Catatan dari dosen...">${d?d.catatan:''}</textarea>
+            </div>
+            <div class="form-group full"><label>📎 Upload Dokumentasi</label>
+                <input type="file" id="fb_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"/>
+                ${d&&d.fileName?`<p style="font-size:12px;color:#64748b;margin-top:4px;">File: <strong>${d.fileName}</strong></p>`:''}
+                <small style="color:#64748b;">PDF, DOC, JPG, PNG, ZIP</small>
+            </div>
+            <div class="form-group"><label>Tindak Lanjut</label>
+                <input id="fb_tindak" value="${d?d.tindak:''}" placeholder="Aksi selanjutnya..."/>
+            </div>
+            <div class="form-group"><label>Deadline Follow-up</label>
+                <input type="date" id="fb_deadline" value="${d?d.deadline:''}"/>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-success" onclick="simpanBimbingan('${id||''}')">Simpan</button>
+            <button class="btn" onclick="document.getElementById('formBimbinganContainer').innerHTML=''">Batal</button>
+        </div>
+    </div>`;
 };
+
 window.simpanBimbingan=function(id){
-    const tugasId=document.getElementById('fb_tugas').value,tanggal=document.getElementById('fb_tanggal').value;
-    const progress=parseInt(document.getElementById('fb_progress').value)||0,status=document.getElementById('fb_status').value;
-    const pembahasan=document.getElementById('fb_pembahasan').value.trim(),catatan=document.getElementById('fb_catatan').value.trim();
-    const tindak=document.getElementById('fb_tindak').value.trim(),deadline=document.getElementById('fb_deadline').value;
-    const fileInput=document.getElementById('fb_file');
-    if(!tugasId||!tanggal){alert('Tugas dan Tanggal wajib diisi.');return}
+    const judulBimbingan = document.getElementById('fb_judul').value.trim();
+    const tanggal = document.getElementById('fb_tanggal').value;
+    const tugasId = document.getElementById('fb_tugas').value || null;
+    const progress = parseInt(document.getElementById('fb_progress').value)||0;
+    const status = document.getElementById('fb_status').value;
+    const pembahasan = document.getElementById('fb_pembahasan').value.trim();
+    const catatan = document.getElementById('fb_catatan').value.trim();
+    const tindak = document.getElementById('fb_tindak').value.trim();
+    const deadline = document.getElementById('fb_deadline').value;
+    const fileInput = document.getElementById('fb_file');
+    
+    if(!judulBimbingan){alert('Judul Bimbingan wajib diisi.');return;}
+    if(!tanggal){alert('Tanggal wajib diisi.');return;}
+    
     let fileName=null,fileData=null;
-    if(fileInput.files&&fileInput.files[0]){const file=fileInput.files[0];fileName=file.name;const reader=new FileReader();reader.onload=function(e){saveBimbinganData(id,tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline,fileName,e.target.result)};reader.readAsDataURL(file);return}
-    if(id){const existing=state.bimbingan.find(b=>b.id===id);if(existing){fileName=existing.fileName||null;fileData=existing.fileData||null}}
-    saveBimbinganData(id,tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline,fileName,fileData);
+    if(fileInput.files&&fileInput.files[0]){
+        const file=fileInput.files[0];
+        fileName=file.name;
+        const reader=new FileReader();
+        reader.onload=function(e){
+            saveBimbinganData(id, judulBimbingan, tanggal, tugasId, progress, status, pembahasan, catatan, tindak, deadline, fileName, e.target.result);
+        };
+        reader.readAsDataURL(file);
+        return;
+    }
+    
+    if(id){
+        const existing=state.bimbingan.find(b=>b.id===id);
+        if(existing){
+            fileName=existing.fileName||null;
+            fileData=existing.fileData||null;
+        }
+    }
+    saveBimbinganData(id, judulBimbingan, tanggal, tugasId, progress, status, pembahasan, catatan, tindak, deadline, fileName, fileData);
 };
-function saveBimbinganData(id,tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline,fileName,fileData){
-    if(id){const b=state.bimbingan.find(x=>x.id===id);if(b){Object.assign(b,{tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline});if(fileName){b.fileName=fileName;b.fileData=fileData}}}else state.bimbingan.push({id:genId(),tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline,fileName:fileName||null,fileData:fileData||null});
+
+function saveBimbinganData(id, judulBimbingan, tanggal, tugasId, progress, status, pembahasan, catatan, tindak, deadline, fileName, fileData){
+    if(id){
+        const b=state.bimbingan.find(x=>x.id===id);
+        if(b){
+            Object.assign(b, {judulBimbingan, tanggal, tugasId, progress, status, pembahasan, catatan, tindak, deadline});
+            if(fileName){b.fileName=fileName; b.fileData=fileData;}
+        }
+    } else {
+        state.bimbingan.push({
+            id:genId(),
+            judulBimbingan,
+            tanggal,
+            tugasId: tugasId || null,
+            progress,
+            status,
+            pembahasan,
+            catatan,
+            tindak,
+            deadline,
+            fileName: fileName||null,
+            fileData: fileData||null
+        });
+    }
     saveAll();
     document.getElementById('formBimbinganContainer').innerHTML='';
     render('bimbingan');
-}
-window.hapusBimbingan=function(id){if(!confirm('Hapus bimbingan?'))return;state.bimbingan=state.bimbingan.filter(b=>b.id!==id);saveAll();render('bimbingan')};
+};
+
+window.hapusBimbingan=function(id){
+    if(!confirm('Hapus bimbingan?'))return;
+    state.bimbingan=state.bimbingan.filter(b=>b.id!==id);
+    saveAll();
+    render('bimbingan');
+};
 
 // ============================================================
 //  TIMELINE
