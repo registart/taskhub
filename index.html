@@ -25,7 +25,8 @@
         .main{flex:1;padding:24px 32px;overflow-y:auto;max-height:100vh}
         .page-title{font-size:24px;font-weight:700;margin-bottom:4px}
         .page-sub{color:#64748b;margin-bottom:20px;font-size:14px}
-        .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:20px}
+        .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:20px;transition:transform .2s}
+        .card:hover{transform:translateY(-2px)}
         .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
         .card-header h3{font-size:16px}
         table{width:100%;border-collapse:collapse;font-size:13px}
@@ -56,6 +57,8 @@
         .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
         .text-muted{color:#64748b;font-size:13px}
         .hidden{display:none!important}
+        
+        /* CHART STYLES */
         .chart-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:20px}
         .chart-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center}
         .chart-card h4{font-size:13px;color:#64748b;margin-bottom:8px}
@@ -67,6 +70,14 @@
         .donut-wrap{display:flex;justify-content:center;align-items:center;gap:20px;flex-wrap:wrap}
         .donut-svg{width:140px;height:140px;transform:rotate(-90deg)}
         .donut-svg circle{fill:none;stroke-width:16}
+        
+        /* KELOMPOK CARDS */
+        .kelompok-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+        .kelompok-card{border-left:4px solid #3b82f6;transition:transform .2s,box-shadow .2s}
+        .kelompok-card:hover{transform:translateY(-3px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+        .kelompok-card .badge-gray{margin:2px}
+        .preview-anggota{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#fff;border-radius:6px;border:1px solid #e2e8f0;min-height:40px}
+        
         @media(max-width:768px){
             .sidebar{width:56px;padding:10px 6px}
             .sidebar .brand{font-size:14px;text-align:center}
@@ -77,6 +88,7 @@
             table{font-size:11px}
             .card{padding:12px}
             .chart-container{grid-template-columns:1fr}
+            .kelompok-grid{grid-template-columns:1fr}
         }
     </style>
 </head>
@@ -299,38 +311,222 @@ window.simpanMhs=function(id){
 window.hapusMhs=function(id){if(!confirm('Hapus mahasiswa?'))return;state.mahasiswa=state.mahasiswa.filter(m=>m.id!==id);saveAll();render('mahasiswa')};
 
 // ============================================================
-//  KELOMPOK
+//  KELOMPOK - REDESIGN
 // ============================================================
 function kelompok(el){
-    el.innerHTML=`
-    <div class="flex-between"><div><div class="page-title">👥 Kelompok</div><div class="page-sub">Kelompok mahasiswa</div></div><button class="btn btn-primary" onclick="showFormKlp()">+ Tambah</button></div>
-    <div class="card">${state.kelompok.length===0?'<p class="text-muted">Belum ada kelompok.</p>':`
-    <table><thead><tr><th>Nama</th><th>Kelas</th><th>Ketua</th><th>Anggota</th><th>Aksi</th></tr></thead><tbody>
-    ${state.kelompok.map(k=>{const ketua=namaMhs(k.ketuaId),anggota=(k.anggotaIds||[]).map(id=>namaMhs(id)).join(', ');return`<tr><td><strong>${k.nama}</strong></td><td>${k.kelas}</td><td>${ketua}</td><td>${anggota||'-'}</td><td><button class="btn btn-sm btn-primary" onclick="showFormKlp('${k.id}')">✎</button><button class="btn btn-sm btn-danger" onclick="hapusKlp('${k.id}')">✕</button></td></tr>`}).join('')}
-    </tbody></table>`}</div>
-    <div id="formKlpContainer"></div>`;
+    const totalKlp = state.kelompok.length;
+    
+    el.innerHTML = `
+    <div class="page-title">👥 Kelompok</div>
+    <div class="page-sub">Kelola kelompok mahasiswa</div>
+    
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="btn btn-primary" onclick="showFormKlp()">➕ Buat Kelompok Baru</button>
+        ${totalKlp > 0 ? `
+            <button class="btn" onclick="alert('Fitur ekspor sedang dalam pengembangan')">📤 Ekspor Data</button>
+            <span class="badge badge-blue" style="padding:6px 16px;font-size:13px;">${totalKlp} Kelompok</span>
+        ` : ''}
+    </div>
+    
+    <div class="kelompok-grid">
+        ${totalKlp === 0 ? `
+            <div class="card" style="text-align:center;padding:40px 20px;grid-column:1/-1;">
+                <div style="font-size:48px;margin-bottom:12px;">👥</div>
+                <h3 style="color:#64748b;">Belum ada kelompok</h3>
+                <p class="text-muted">Klik "Buat Kelompok Baru" untuk memulai</p>
+                ${state.mahasiswa.length === 0 ? '<p style="color:#ef4444;font-size:13px;margin-top:8px;">⚠️ Tambahkan mahasiswa dulu di menu Mahasiswa</p>' : ''}
+            </div>
+        ` : state.kelompok.map(k => {
+            const ketua = namaMhs(k.ketuaId);
+            const anggota = (k.anggotaIds || []).map(id => namaMhs(id));
+            const totalTugas = state.tugas.filter(t => t.target === 'Kelompok' && t.targetId === k.id).length;
+            const progressTugas = state.tugas.filter(t => t.target === 'Kelompok' && t.targetId === k.id);
+            const avgProgress = progressTugas.length ? 
+                Math.round(progressTugas.reduce((s,t) => s + getProgress(t.id).pct, 0) / progressTugas.length) : 0;
+            
+            return `
+            <div class="card kelompok-card" style="padding:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                    <div>
+                        <h3 style="font-size:16px;font-weight:700;">${k.nama}</h3>
+                        <span class="badge badge-blue">${k.kelas || 'Tanpa Kelas'}</span>
+                    </div>
+                    <div style="display:flex;gap:4px;">
+                        <button class="btn btn-sm btn-primary" onclick="showFormKlp('${k.id}')">✎</button>
+                        <button class="btn btn-sm btn-danger" onclick="hapusKlp('${k.id}')">✕</button>
+                    </div>
+                </div>
+                
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                    <span style="background:#dbeafe;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;">👑</span>
+                    <span><strong>Ketua:</strong> ${ketua}</span>
+                </div>
+                
+                <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">
+                        ${anggota.length ? anggota.map(a => `<span class="badge badge-gray" style="padding:3px 10px;">${a}</span>`).join('') : 
+                        '<span class="text-muted" style="font-size:12px;">Belum ada anggota</span>'}
+                        ${anggota.length > 0 ? `<span class="badge badge-gray" style="padding:3px 10px;background:#dbeafe;">+ ${anggota.length} anggota</span>` : ''}
+                    </div>
+                </div>
+                
+                <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:13px;color:#64748b;">
+                    <span>📝 ${totalTugas} tugas</span>
+                    <span>📈 ${avgProgress}% progress</span>
+                </div>
+                ${totalTugas > 0 ? `
+                <div class="progress-bar" style="height:4px;margin-top:6px;">
+                    <div class="fill" style="width:${avgProgress}%;"></div>
+                </div>` : '<div style="height:4px;margin-top:6px;"></div>'}
+            </div>
+            `;
+        }).join('')}
+    </div>
+    
+    <div id="formKlpContainer"></div>
+    `;
 }
-window.showFormKlp=function(id){
-    const d=id?findKlp(id):null,c=document.getElementById('formKlpContainer');
-    const mhsOpt=state.mahasiswa.map(m=>`<option value="${m.id}" ${d&&(d.ketuaId===m.id||(d.anggotaIds||[]).includes(m.id))?'selected':''}>${m.nama} (${m.npm})</option>`).join('');
-    c.innerHTML=`<div class="card" style="border:2px solid #3b82f6;"><h3>${d?'✎ Edit':'➕ Tambah'} Kelompok</h3><div class="form-grid">
-    <div class="form-group"><label>Nama Kelompok</label><input id="fk_nama" value="${d?d.nama:''}"/></div>
-    <div class="form-group"><label>Kelas</label><input id="fk_kelas" value="${d?d.kelas:''}"/></div>
-    <div class="form-group"><label>Ketua</label><select id="fk_ketua"><option value="">-- pilih --</option>${mhsOpt}</select></div>
-    <div class="form-group"><label>Anggota (ctrl+klik multi)</label><select id="fk_anggota" multiple style="min-height:60px;">${mhsOpt}</select></div>
-    </div><div class="form-actions"><button class="btn btn-success" onclick="simpanKlp('${id||''}')">Simpan</button><button class="btn" onclick="document.getElementById('formKlpContainer').innerHTML=''">Batal</button></div></div>`;
-    if(d){const sel=document.getElementById('fk_anggota'),ids=d.anggotaIds||[];for(let o of sel.options)if(ids.includes(o.value))o.selected=true}
+
+window.showFormKlp = function(id) {
+    const d = id ? findKlp(id) : null;
+    const c = document.getElementById('formKlpContainer');
+    const isEdit = !!d;
+    
+    // Opsi mahasiswa
+    const mhsOpt = state.mahasiswa.map(m => `
+        <option value="${m.id}" ${d && (d.ketuaId === m.id || (d.anggotaIds || []).includes(m.id)) ? 'selected' : ''}>
+            ${m.nama} (${m.npm})
+        </option>
+    `).join('');
+    
+    // Preview anggota yang sudah dipilih
+    const selectedAnggota = d ? (d.anggotaIds || []).map(id => {
+        const m = findMhs(id);
+        return m ? `<span class="badge badge-blue" style="padding:4px 12px;">👤 ${m.nama}</span>` : '';
+    }).join('') : '';
+    
+    c.innerHTML = `
+    <div class="card" style="border:2px solid #3b82f6;margin-top:20px;background:#f8fafc;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="font-size:18px;">${isEdit ? '✎ Edit' : '➕ Buat'} Kelompok</h3>
+            <button class="btn" onclick="document.getElementById('formKlpContainer').innerHTML=''">✕ Tutup</button>
+        </div>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label>🏷️ Nama Kelompok *</label>
+                <input id="fk_nama" value="${d ? d.nama : ''}" placeholder="Contoh: Kelompok A, Tim Alpha" style="font-weight:600;"/>
+            </div>
+            
+            <div class="form-group">
+                <label>📚 Kelas</label>
+                <input id="fk_kelas" value="${d ? d.kelas : ''}" placeholder="Contoh: 5BD01"/>
+            </div>
+            
+            <div class="form-group">
+                <label>👑 Ketua *</label>
+                <select id="fk_ketua" style="font-weight:600;">
+                    <option value="">-- Pilih Ketua --</option>
+                    ${mhsOpt}
+                </select>
+                ${state.mahasiswa.length === 0 ? '<small style="color:#ef4444;">⚠️ Belum ada mahasiswa. Buat mahasiswa dulu di menu Mahasiswa.</small>' : ''}
+            </div>
+            
+            <div class="form-group">
+                <label>👥 Anggota</label>
+                <select id="fk_anggota" multiple style="min-height:80px;padding:6px;">
+                    ${mhsOpt}
+                </select>
+                <small style="color:#64748b;">Tekan Ctrl (Cmd di Mac) + klik untuk pilih banyak anggota</small>
+            </div>
+            
+            <div class="form-group full" id="previewAnggota" style="${selectedAnggota ? '' : 'display:none;'}">
+                <label>📋 Anggota Terpilih:</label>
+                <div class="preview-anggota">
+                    ${selectedAnggota || '<span class="text-muted" style="font-size:13px;">Belum ada anggota dipilih</span>'}
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions" style="margin-top:16px;border-top:1px solid #e2e8f0;padding-top:16px;">
+            <button class="btn btn-success" onclick="simpanKlp('${id || ''}')" style="padding:10px 32px;">
+                💾 ${isEdit ? 'Update' : 'Simpan'} Kelompok
+            </button>
+            <button class="btn btn-danger" onclick="document.getElementById('formKlpContainer').innerHTML=''">Batal</button>
+        </div>
+    </div>
+    `;
+    
+    // Set selected untuk multi select
+    if (d) {
+        const sel = document.getElementById('fk_anggota');
+        const ids = d.anggotaIds || [];
+        for (let o of sel.options) {
+            if (ids.includes(o.value)) o.selected = true;
+        }
+        updatePreviewAnggota();
+    }
+    
+    // Event listener untuk update preview
+    document.getElementById('fk_anggota').addEventListener('change', updatePreviewAnggota);
 };
-window.simpanKlp=function(id){
-    const nama=document.getElementById('fk_nama').value.trim(),kelas=document.getElementById('fk_kelas').value.trim(),ketuaId=document.getElementById('fk_ketua').value;
-    const anggotaIds=Array.from(document.getElementById('fk_anggota').selectedOptions).map(o=>o.value);
-    if(!nama||!ketuaId){alert('Nama dan Ketua wajib diisi.');return}
-    if(id){const k=findKlp(id);if(k)Object.assign(k,{nama,kelas,ketuaId,anggotaIds})}else state.kelompok.push({id:genId(),nama,kelas,ketuaId,anggotaIds});
+
+// Fungsi update preview anggota
+function updatePreviewAnggota() {
+    const sel = document.getElementById('fk_anggota');
+    const preview = document.getElementById('previewAnggota');
+    if (!preview) return;
+    
+    const container = preview.querySelector('.preview-anggota');
+    if (!container) return;
+    
+    const selected = Array.from(sel.selectedOptions);
+    
+    if (selected.length === 0) {
+        preview.style.display = 'none';
+        return;
+    }
+    
+    preview.style.display = 'block';
+    container.innerHTML = selected.map(opt => {
+        const m = findMhs(opt.value);
+        return m ? `<span class="badge badge-blue" style="padding:4px 12px;font-size:13px;">👤 ${m.nama}</span>` : '';
+    }).join('');
+}
+
+window.simpanKlp = function(id) {
+    const nama = document.getElementById('fk_nama').value.trim();
+    const kelas = document.getElementById('fk_kelas').value.trim();
+    const ketuaId = document.getElementById('fk_ketua').value;
+    const anggotaSelect = document.getElementById('fk_anggota');
+    const anggotaIds = Array.from(anggotaSelect.selectedOptions).map(o => o.value);
+    
+    if (!nama) { alert('Nama Kelompok wajib diisi.'); return; }
+    if (!ketuaId) { alert('Pilih Ketua terlebih dahulu.'); return; }
+    
+    // Validasi: ketua tidak boleh sama dengan anggota (opsional)
+    if (anggotaIds.includes(ketuaId)) {
+        if (!confirm('Ketua juga terpilih sebagai anggota. Lanjutkan?')) return;
+    }
+    
+    if (id) {
+        const k = findKlp(id);
+        if (k) Object.assign(k, { nama, kelas, ketuaId, anggotaIds });
+    } else {
+        state.kelompok.push({ id: genId(), nama, kelas, ketuaId, anggotaIds });
+    }
+    
     saveAll();
-    document.getElementById('formKlpContainer').innerHTML='';
+    document.getElementById('formKlpContainer').innerHTML = '';
     render('kelompok');
 };
-window.hapusKlp=function(id){if(!confirm('Hapus kelompok?'))return;state.kelompok=state.kelompok.filter(k=>k.id!==id);saveAll();render('kelompok')};
+
+window.hapusKlp = function(id) {
+    if (!confirm('Hapus kelompok ini? Semua data terkait (tugas, progress) akan tetap tersimpan.')) return;
+    state.kelompok = state.kelompok.filter(k => k.id !== id);
+    saveAll();
+    render('kelompok');
+};
 
 // ============================================================
 //  MATA KULIAH
@@ -532,7 +728,7 @@ function saveProgressData(id,tugasId,tahapan,persen,status,catatan,fileName,file
 window.hapusProgress=function(id){if(!confirm('Hapus progress?'))return;state.progress=state.progress.filter(p=>p.id!==id);saveAll();render('progress')};
 
 // ============================================================
-//  BIMBINGAN - FIXED: Bisa berdiri sendiri atau terhubung ke tugas
+//  BIMBINGAN
 // ============================================================
 function bimbingan(el){
     el.innerHTML=`
@@ -559,8 +755,6 @@ function bimbingan(el){
 window.showFormBimbingan=function(id){
     const d=id?state.bimbingan.find(b=>b.id===id):null;
     const c=document.getElementById('formBimbinganContainer');
-    
-    // Options untuk tugas (dengan opsi kosong untuk bimbingan umum)
     const tugasOpt = `<option value="">-- Tidak terkait tugas --</option>` + 
         state.tugas.map(t=>`<option value="${t.id}" ${d&&d.tugasId===t.id?'selected':''}>${t.judul}</option>`).join('');
     
@@ -575,9 +769,7 @@ window.showFormBimbingan=function(id){
                 <input type="date" id="fb_tanggal" value="${d?d.tanggal:''}"/>
             </div>
             <div class="form-group"><label>Tugas Terkait (opsional)</label>
-                <select id="fb_tugas">
-                    ${tugasOpt}
-                </select>
+                <select id="fb_tugas">${tugasOpt}</select>
                 <small style="color:#64748b;">Kosongkan jika bimbingan umum/tidak terkait tugas tertentu</small>
             </div>
             <div class="form-group"><label>Progress (%)</label>
