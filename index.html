@@ -15,8 +15,6 @@
         .btn-danger{background:#ef4444;color:#fff}
         .btn-danger:hover{background:#dc2626}
         .btn-sm{padding:4px 12px;font-size:12px}
-        
-        /* SIDEBAR */
         .sidebar{width:200px;background:#0f172a;color:#e2e8f0;padding:20px 14px;display:flex;flex-direction:column;gap:4px;height:100vh;position:sticky;top:0;overflow-y:auto;flex-shrink:0}
         .sidebar .brand{font-size:18px;font-weight:700;margin-bottom:16px;color:#facc15}
         .sidebar .menu-item{padding:8px 12px;border-radius:6px;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:10px;font-size:14px}
@@ -24,38 +22,26 @@
         .sidebar .menu-item.active{background:#3b82f6;color:#fff}
         .sidebar .divider{border-top:1px solid #334155;margin:8px 0}
         .sidebar .label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#64748b;padding:6px 12px 2px}
-        
-        /* MAIN */
         .main{flex:1;padding:24px 32px;overflow-y:auto;max-height:100vh}
         .page-title{font-size:24px;font-weight:700;margin-bottom:4px}
         .page-sub{color:#64748b;margin-bottom:20px;font-size:14px}
-        
-        /* CARD */
         .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:20px}
         .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
         .card-header h3{font-size:16px}
-        
-        /* TABLE */
         table{width:100%;border-collapse:collapse;font-size:13px}
         th{text-align:left;padding:8px 6px;background:#f8fafc;font-weight:600;color:#475569}
         td{padding:8px 6px;border-bottom:1px solid #e9edf2}
         tr:hover td{background:#fafcff}
-        
-        /* BADGE */
         .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
         .badge-blue{background:#dbeafe;color:#1d4ed8}
         .badge-green{background:#dcfce7;color:#15803d}
         .badge-yellow{background:#fef9c3;color:#a16207}
         .badge-red{background:#fee2e2;color:#b91c1c}
         .badge-gray{background:#e2e8f0;color:#475569}
-        
-        /* PROGRESS BAR */
         .progress-wrap{display:flex;align-items:center;gap:8px}
         .progress-bar{flex:1;height:6px;background:#e2e8f0;border-radius:10px;overflow:hidden;min-width:60px}
         .progress-bar .fill{height:100%;background:#3b82f6;border-radius:10px;transition:.3s}
         .progress-label{font-weight:600;font-size:12px;min-width:32px}
-        
-        /* FORM */
         .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
         .form-grid .full{grid-column:1/-1}
         .form-group{display:flex;flex-direction:column;gap:3px}
@@ -69,7 +55,6 @@
         .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
         .text-muted{color:#64748b;font-size:13px}
         .hidden{display:none!important}
-        
         @media(max-width:768px){
             .sidebar{width:56px;padding:10px 6px}
             .sidebar .brand{font-size:14px;text-align:center}
@@ -140,7 +125,8 @@ function render(page){
     document.querySelectorAll('.menu-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
     const el=document.getElementById('mainContent');
     const pages={dashboard, mahasiswa, kelompok, matakuliah, tugas, progress, bimbingan, timeline, deadline};
-    (pages[page]||(()=>el.innerHTML='<p>Halaman tidak ditemukan.</p>'))(el);
+    if(pages[page]) pages[page](el);
+    else el.innerHTML='<p>Halaman tidak ditemukan.</p>';
 }
 
 // ---------- DASHBOARD ----------
@@ -234,7 +220,9 @@ function matakuliah(el){
 window.tambahMatkul=function(){const n=prompt('Nama Mata Kuliah:');if(n&&n.trim()){state.matakuliah.push(n.trim());saveAll();render('matakuliah')}};
 window.hapusMatkul=function(n){if(!confirm(`Hapus "${n}"?`))return;state.matakuliah=state.matakuliah.filter(m=>m!==n);saveAll();render('matakuliah')};
 
-// ---------- TUGAS ----------
+// ============================================================
+//  TUGAS - FIXED
+// ============================================================
 function tugas(el){
     el.innerHTML=`
     <div class="flex-between"><div><div class="page-title">📝 Tugas</div><div class="page-sub">Semua jenis tugas</div></div><button class="btn btn-primary" onclick="showFormTugas()">+ Tambah</button></div>
@@ -244,46 +232,143 @@ function tugas(el){
     </tbody></table>`}</div>
     <div id="formTugasContainer"></div>`;
 }
+
 window.showFormTugas=function(id){
-    const d=id?findTugas(id):null,c=document.getElementById('formTugasContainer');
+    const d=id?findTugas(id):null;
+    const c=document.getElementById('formTugasContainer');
+    
+    // Options for mata kuliah
     const mkOpt=state.matakuliah.map(m=>`<option value="${m}" ${d&&d.matakuliah===m?'selected':''}>${m}</option>`).join('');
-    const mhsOpt=state.mahasiswa.map(m=>`<option value="${m.id}" ${d&&d.target==='Individu'&&d.targetId===m.id?'selected':''}>${m.nama}</option>`).join('');
-    const klmOpt=state.kelompok.map(k=>`<option value="${k.id}" ${d&&d.target==='Kelompok'&&d.targetId===k.id?'selected':''}>${k.nama}</option>`).join('');
-    const showExtra=d&&d.jenis==='Tugas Besar';
+    
+    // Options for target (mahasiswa/kelompok)
+    const mhsOpt=state.mahasiswa.map(m=>`<option value="${m.id}">${m.nama} (${m.npm})</option>`).join('');
+    const klmOpt=state.kelompok.map(k=>`<option value="${k.id}">${k.nama}</option>`).join('');
+    
+    // Determine which options to show based on current target selection
+    const currentTarget = d ? d.target : 'Individu';
+    const targetOpts = currentTarget === 'Individu' ? mhsOpt : klmOpt;
+    
+    const showExtra = d && d.jenis==='Tugas Besar';
     const jenisOpt=JENIS.map(j=>`<option value="${j}" ${d&&d.jenis===j?'selected':''}>${j}</option>`).join('');
-    c.innerHTML=`<div class="card" style="border:2px solid #3b82f6;"><h3>${d?'✎ Edit':'➕ Tambah'} Tugas</h3><div class="form-grid">
-    <div class="form-group"><label>Judul</label><input id="ft_judul" value="${d?d.judul:''}"/></div>
-    <div class="form-group"><label>Jenis</label><select id="ft_jenis" onchange="toggleExtraTugas()">${jenisOpt}</select></div>
-    <div class="form-group"><label>Mata Kuliah</label><select id="ft_matkul">${mkOpt}</select></div>
-    <div class="form-group"><label>Deskripsi</label><textarea id="ft_deskripsi">${d?d.deskripsi:''}</textarea></div>
-    <div class="form-group"><label>Target</label><select id="ft_target" onchange="toggleTargetTugas()"><option value="Individu" ${d&&d.target==='Individu'?'selected':''}>Individu</option><option value="Kelompok" ${d&&d.target==='Kelompok'?'selected':''}>Kelompok</option></select></div>
-    <div class="form-group"><label>Pilih Target</label><select id="ft_targetId"><option value="">-- pilih --</option>${d&&d.target==='Individu'?mhsOpt:klmOpt}</select></div>
-    <div class="form-group"><label>Deadline</label><input type="date" id="ft_deadline" value="${d?d.deadline:''}"/></div>
-    <div class="form-group"><label>Bobot (%)</label><input type="number" id="ft_bobot" value="${d?d.bobot:10}"/></div>
-    <div class="form-group"><label>Status</label><select id="ft_status"><option value="Aktif" ${d&&d.status==='Aktif'?'selected':''}>Aktif</option><option value="Selesai" ${d&&d.status==='Selesai'?'selected':''}>Selesai</option><option value="Draft" ${d&&d.status==='Draft'?'selected':''}>Draft</option></select></div>
-    <div class="form-group full" id="extraTugasContainer" style="${showExtra?'':'display:none;'}"><hr/><h4>📌 Detail Tugas Besar</h4><div class="form-grid"><div class="form-group"><label>Project</label><input id="ft_project" value="${d?d.project:''}"/></div><div class="form-group"><label>Problem</label><input id="ft_problem" value="${d?d.problem:''}"/></div><div class="form-group"><label>Target User</label><input id="ft_user" value="${d?d.user:''}"/></div><div class="form-group"><label>Output</label><input id="ft_output" value="${d?d.output:''}"/></div></div></div>
-    </div><div class="form-actions"><button class="btn btn-success" onclick="simpanTugas('${id||''}')">Simpan</button><button class="btn" onclick="document.getElementById('formTugasContainer').innerHTML=''">Batal</button></div></div>`;
-    if(d&&d.targetId){const sel=document.getElementById('ft_targetId');for(let o of sel.options)if(o.value===d.targetId)o.selected=true}
+    
+    c.innerHTML=`
+    <div class="card" style="border:2px solid #3b82f6;">
+        <h3>${d?'✎ Edit':'➕ Tambah'} Tugas</h3>
+        <div class="form-grid">
+            <div class="form-group"><label>Judul *</label><input id="ft_judul" value="${d?d.judul:''}" placeholder="Masukkan judul tugas"/></div>
+            <div class="form-group"><label>Jenis</label>
+                <select id="ft_jenis" onchange="toggleExtraTugas()">${jenisOpt}</select>
+            </div>
+            <div class="form-group"><label>Mata Kuliah</label>
+                <select id="ft_matkul">${mkOpt}</select>
+            </div>
+            <div class="form-group"><label>Deskripsi</label>
+                <textarea id="ft_deskripsi" placeholder="Deskripsi tugas...">${d?d.deskripsi:''}</textarea>
+            </div>
+            <div class="form-group"><label>Target *</label>
+                <select id="ft_target" onchange="toggleTargetTugas()">
+                    <option value="Individu" ${d&&d.target==='Individu'?'selected':''}>Individu</option>
+                    <option value="Kelompok" ${d&&d.target==='Kelompok'?'selected':''}>Kelompok</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Pilih Target *</label>
+                <select id="ft_targetId">
+                    <option value="">-- pilih --</option>
+                    ${targetOpts}
+                </select>
+            </div>
+            <div class="form-group"><label>Deadline</label>
+                <input type="date" id="ft_deadline" value="${d?d.deadline:''}"/>
+            </div>
+            <div class="form-group"><label>Bobot (%)</label>
+                <input type="number" id="ft_bobot" value="${d?d.bobot:10}" min="0" max="100"/>
+            </div>
+            <div class="form-group"><label>Status</label>
+                <select id="ft_status">
+                    <option value="Aktif" ${d&&d.status==='Aktif'?'selected':''}>Aktif</option>
+                    <option value="Selesai" ${d&&d.status==='Selesai'?'selected':''}>Selesai</option>
+                    <option value="Draft" ${d&&d.status==='Draft'?'selected':''}>Draft</option>
+                </select>
+            </div>
+            <div class="form-group full" id="extraTugasContainer" style="${showExtra?'':'display:none;'}">
+                <hr/><h4>📌 Detail Tugas Besar</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Project</label><input id="ft_project" value="${d?d.project:''}"/></div>
+                    <div class="form-group"><label>Problem</label><input id="ft_problem" value="${d?d.problem:''}"/></div>
+                    <div class="form-group"><label>Target User</label><input id="ft_user" value="${d?d.user:''}"/></div>
+                    <div class="form-group"><label>Output</label><input id="ft_output" value="${d?d.output:''}"/></div>
+                </div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-success" onclick="simpanTugas('${id||''}')">Simpan</button>
+            <button class="btn" onclick="document.getElementById('formTugasContainer').innerHTML=''">Batal</button>
+        </div>
+    </div>`;
+    
+    // Set selected targetId if editing
+    if(d&&d.targetId){
+        const sel=document.getElementById('ft_targetId');
+        for(let o of sel.options){
+            if(o.value===d.targetId) o.selected=true;
+        }
+    }
 };
-window.toggleExtraTugas=function(){document.getElementById('extraTugasContainer').style.display=document.getElementById('ft_jenis').value==='Tugas Besar'?'block':'none'};
+
+window.toggleExtraTugas=function(){
+    const el=document.getElementById('extraTugasContainer');
+    if(el) el.style.display=document.getElementById('ft_jenis').value==='Tugas Besar'?'block':'none';
+};
+
 window.toggleTargetTugas=function(){
-    const target=document.getElementById('ft_target').value,sel=document.getElementById('ft_targetId');
-    const mhsOpt=state.mahasiswa.map(m=>`<option value="${m.id}">${m.nama}</option>`).join('');
+    const target=document.getElementById('ft_target').value;
+    const sel=document.getElementById('ft_targetId');
+    const mhsOpt=state.mahasiswa.map(m=>`<option value="${m.id}">${m.nama} (${m.npm})</option>`).join('');
     const klmOpt=state.kelompok.map(k=>`<option value="${k.id}">${k.nama}</option>`).join('');
     sel.innerHTML=`<option value="">-- pilih --</option>`+(target==='Individu'?mhsOpt:klmOpt);
 };
+
 window.simpanTugas=function(id){
-    const judul=document.getElementById('ft_judul').value.trim(),jenis=document.getElementById('ft_jenis').value;
-    const matakuliah=document.getElementById('ft_matkul').value,deskripsi=document.getElementById('ft_deskripsi').value.trim();
-    const target=document.getElementById('ft_target').value,targetId=document.getElementById('ft_targetId').value;
-    const deadline=document.getElementById('ft_deadline').value,bobot=parseInt(document.getElementById('ft_bobot').value)||0;
+    const judul=document.getElementById('ft_judul').value.trim();
+    const jenis=document.getElementById('ft_jenis').value;
+    const matakuliah=document.getElementById('ft_matkul').value;
+    const deskripsi=document.getElementById('ft_deskripsi').value.trim();
+    const target=document.getElementById('ft_target').value;
+    const targetId=document.getElementById('ft_targetId').value;
+    const deadline=document.getElementById('ft_deadline').value;
+    const bobot=parseInt(document.getElementById('ft_bobot').value)||0;
     const status=document.getElementById('ft_status').value;
-    if(!judul||!targetId){alert('Judul dan Target wajib diisi.');return}
-    const extra={};if(jenis==='Tugas Besar'){extra.project=document.getElementById('ft_project').value.trim();extra.problem=document.getElementById('ft_problem').value.trim();extra.user=document.getElementById('ft_user').value.trim();extra.output=document.getElementById('ft_output').value.trim()}
-    if(id){const t=findTugas(id);if(t)Object.assign(t,{judul,jenis,matakuliah,deskripsi,target,targetId,deadline,bobot,status,...extra})}else state.tugas.push({id:genId(),judul,jenis,matakuliah,deskripsi,target,targetId,deadline,bobot,status,...extra});
-    saveAll();render('tugas');
+    
+    if(!judul){alert('Judul wajib diisi.');return;}
+    if(!targetId){alert('Pilih target (mahasiswa/kelompok) terlebih dahulu.');return;}
+    
+    const extra={};
+    if(jenis==='Tugas Besar'){
+        extra.project=document.getElementById('ft_project').value.trim();
+        extra.problem=document.getElementById('ft_problem').value.trim();
+        extra.user=document.getElementById('ft_user').value.trim();
+        extra.output=document.getElementById('ft_output').value.trim();
+    }
+    
+    if(id){
+        const t=findTugas(id);
+        if(t) Object.assign(t,{judul,jenis,matakuliah,deskripsi,target,targetId,deadline,bobot,status,...extra});
+    } else {
+        state.tugas.push({id:genId(),judul,jenis,matakuliah,deskripsi,target,targetId,deadline,bobot,status,...extra});
+    }
+    saveAll();
+    document.getElementById('formTugasContainer').innerHTML='';
+    render('tugas');
 };
-window.hapusTugas=function(id){if(!confirm('Hapus tugas?'))return;state.tugas=state.tugas.filter(t=>t.id!==id);state.progress=state.progress.filter(p=>p.tugasId!==id);state.bimbingan=state.bimbingan.filter(b=>b.tugasId!==id);saveAll();render('tugas')};
+
+window.hapusTugas=function(id){
+    if(!confirm('Hapus tugas?')) return;
+    state.tugas=state.tugas.filter(t=>t.id!==id);
+    state.progress=state.progress.filter(p=>p.tugasId!==id);
+    state.bimbingan=state.bimbingan.filter(b=>b.tugasId!==id);
+    saveAll();
+    render('tugas');
+};
 
 // ---------- PROGRESS ----------
 function progress(el){
