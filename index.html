@@ -55,6 +55,32 @@
         .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
         .text-muted{color:#64748b;font-size:13px}
         .hidden{display:none!important}
+        
+        /* CHART STYLES */
+        .chart-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:20px}
+        .chart-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center}
+        .chart-card h4{font-size:13px;color:#64748b;margin-bottom:8px}
+        .chart-value{font-size:28px;font-weight:700;color:#1e293b}
+        .chart-bar-wrap{background:#f1f5f9;border-radius:8px;height:20px;overflow:hidden;margin-top:8px}
+        .chart-bar-wrap .bar{height:100%;border-radius:8px;transition:width 1s ease}
+        .bar-blue{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+        .bar-green{background:linear-gradient(90deg,#22c55e,#4ade80)}
+        .bar-yellow{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+        .bar-red{background:linear-gradient(90deg,#ef4444,#f87171)}
+        .bar-purple{background:linear-gradient(90deg,#8b5cf6,#a78bfa)}
+        
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+        .stat-item{background:#fff;border-radius:10px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+        .stat-item .num{font-size:24px;font-weight:700}
+        .stat-item .label{font-size:12px;color:#64748b;margin-top:2px}
+        .stat-item .icon{font-size:20px}
+        
+        /* Donut chart sederhana pakai SVG */
+        .donut-wrap{display:flex;justify-content:center;align-items:center;gap:20px;flex-wrap:wrap}
+        .donut-svg{width:140px;height:140px;transform:rotate(-90deg)}
+        .donut-svg circle{fill:none;stroke-width:16}
+        .donut-label{font-size:14px;font-weight:600;text-align:center}
+        
         @media(max-width:768px){
             .sidebar{width:56px;padding:10px 6px}
             .sidebar .brand{font-size:14px;text-align:center}
@@ -64,6 +90,7 @@
             .form-grid{grid-template-columns:1fr}
             table{font-size:11px}
             .card{padding:12px}
+            .chart-container{grid-template-columns:1fr}
         }
     </style>
 </head>
@@ -129,22 +156,139 @@ function render(page){
     else el.innerHTML='<p>Halaman tidak ditemukan.</p>';
 }
 
-// ---------- DASHBOARD ----------
+// ============================================================
+//  DASHBOARD WITH CHARTS
+// ============================================================
 function dashboard(el){
-    const totalMhs=state.mahasiswa.length,totalTgs=state.tugas.length,totalBim=state.bimbingan.length;
+    const totalMhs=state.mahasiswa.length;
+    const totalTgs=state.tugas.length;
+    const totalBim=state.bimbingan.length;
     const selesai=state.tugas.filter(t=>t.status==='Selesai').length;
-    const avg=state.tugas.length?Math.round(state.tugas.reduce((s,t)=>s+getProgress(t.id).pct,0)/state.tugas.length):0;
+    const aktif=state.tugas.filter(t=>t.status==='Aktif' || !t.status).length;
+    const draft=state.tugas.filter(t=>t.status==='Draft').length;
+    const avg=totalTgs?Math.round(state.tugas.reduce((s,t)=>s+getProgress(t.id).pct,0)/totalTgs):0;
+    
+    // Hitung progress per jenis tugas untuk donut
+    const jenisCount = {};
+    state.tugas.forEach(t=>{jenisCount[t.jenis]=(jenisCount[t.jenis]||0)+1});
+    const jenisLabels = Object.keys(jenisCount);
+    const jenisValues = Object.values(jenisCount);
+    const colors = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#d946ef'];
+    
+    // Data untuk chart bar (progress per tugas)
+    const top5 = state.tugas.slice(-5).reverse().map(t=>({label:t.judul.substring(0,15),value:getProgress(t.id).pct}));
+    
     el.innerHTML=`
     <div class="page-title">📊 Dashboard</div>
-    <div class="page-sub">Ringkasan aktivitas</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px;">
-      ${[{label:'Mahasiswa',val:totalMhs},{label:'Tugas',val:totalTgs},{label:'Bimbingan',val:totalBim},{label:'Selesai',val:selesai+'/'+totalTgs},{label:'Rata-rata',val:avg+'%'}].map(d=>`<div class="card" style="text-align:center;"><h2>${d.val}</h2><span class="text-muted">${d.label}</span></div>`).join('')}
+    <div class="page-sub">Ringkasan aktivitas akademik</div>
+    
+    <!-- STATS CARDS -->
+    <div class="stats-grid">
+        <div class="stat-item"><div class="icon">👨‍🎓</div><div class="num">${totalMhs}</div><div class="label">Mahasiswa</div></div>
+        <div class="stat-item"><div class="icon">📝</div><div class="num">${totalTgs}</div><div class="label">Total Tugas</div></div>
+        <div class="stat-item"><div class="icon">🧑‍🏫</div><div class="num">${totalBim}</div><div class="label">Bimbingan</div></div>
+        <div class="stat-item"><div class="icon">✅</div><div class="num">${selesai}</div><div class="label">Selesai</div></div>
+        <div class="stat-item"><div class="icon">📈</div><div class="num">${avg}%</div><div class="label">Rata-rata Progress</div></div>
     </div>
+    
+    <!-- CHARTS ROW -->
+    <div class="chart-container">
+        <!-- Donut Chart - Jenis Tugas -->
+        <div class="chart-card">
+            <h4>📊 Jenis Tugas</h4>
+            ${totalTgs===0?'<p class="text-muted" style="padding:20px 0;">Belum ada data</p>':`
+            <div class="donut-wrap">
+                <svg class="donut-svg" viewBox="0 0 120 120">
+                    ${jenisLabels.map((label,i)=>{
+                        const pct = (jenisValues[i]/totalTgs)*100;
+                        const circumference = 2 * Math.PI * 44;
+                        const offset = circumference - (pct/100)*circumference;
+                        const prevOffset = jenisLabels.slice(0,i).reduce((s,_,idx)=>s+(jenisValues[idx]/totalTgs)*circumference,0);
+                        return `<circle cx="60" cy="60" r="44" 
+                            stroke="${colors[i%colors.length]}" 
+                            stroke-dasharray="${circumference}" 
+                            stroke-dashoffset="${circumference - (pct/100)*circumference}"
+                            style="transition:stroke-dashoffset 1s ease;"
+                        />`;
+                    }).join('')}
+                </svg>
+                <div>
+                    ${jenisLabels.map((label,i)=>`
+                        <div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0;">
+                            <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${colors[i%colors.length]}"></span>
+                            ${label}: ${jenisValues[i]}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`}
+        </div>
+        
+        <!-- Progress Bar Chart -->
+        <div class="chart-card">
+            <h4>📈 Progress 5 Tugas Terakhir</h4>
+            ${top5.length===0?'<p class="text-muted" style="padding:20px 0;">Belum ada tugas</p>':`
+            <div style="text-align:left;">
+                ${top5.map((item,i)=>`
+                    <div style="margin-bottom:8px;">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
+                            <span>${item.label}${item.label.length>15?'...':''}</span>
+                            <span>${item.value}%</span>
+                        </div>
+                        <div class="progress-bar" style="height:10px;">
+                            <div class="fill" style="width:${item.value}%;background:${item.value>70?'#22c55e':item.value>40?'#f59e0b':'#ef4444'};"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>`}
+        </div>
+    </div>
+    
+    <!-- Status Ringkasan -->
+    <div class="chart-container">
+        <div class="chart-card">
+            <h4>📌 Status Tugas</h4>
+            ${totalTgs===0?'<p class="text-muted" style="padding:20px 0;">Belum ada data</p>':`
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                <div><span class="badge badge-green">Selesai</span><br/><strong>${selesai}</strong></div>
+                <div><span class="badge badge-yellow">Aktif</span><br/><strong>${aktif}</strong></div>
+                <div><span class="badge badge-gray">Draft</span><br/><strong>${draft}</strong></div>
+            </div>
+            <div style="margin-top:12px;">
+                <div style="display:flex;gap:4px;height:12px;border-radius:6px;overflow:hidden;">
+                    ${selesai>0?`<div style="flex:${selesai};background:#22c55e;"></div>`:''}
+                    ${aktif>0?`<div style="flex:${aktif};background:#f59e0b;"></div>`:''}
+                    ${draft>0?`<div style="flex:${draft};background:#94a3b8;"></div>`:''}
+                </div>
+            </div>`}
+        </div>
+        
+        <div class="chart-card">
+            <h4>🧑‍🏫 Aktivitas Bimbingan</h4>
+            ${totalBim===0?'<p class="text-muted" style="padding:20px 0;">Belum ada bimbingan</p>':`
+            <div style="font-size:14px;">
+                <div>Total: <strong>${totalBim}</strong> bimbingan</div>
+                <div style="margin-top:6px;">
+                    ${state.bimbingan.slice(-3).reverse().map(b=>{
+                        const t=findTugas(b.tugasId);
+                        return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+                            <span>${t?t.judul.substring(0,20):'(dihapus)'}</span>
+                            <span>${b.tanggal}</span>
+                            <span class="badge ${b.status==='Selesai'?'badge-green':'badge-yellow'}">${b.status||'Proses'}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`}
+        </div>
+    </div>
+    
+    <!-- TUGAS TERBARU TABLE -->
     <div class="card"><div class="card-header"><h3>📌 Tugas Terbaru</h3></div>
     ${state.tugas.length===0?'<p class="text-muted">Belum ada tugas.</p>':`
     <table><thead><tr><th>Judul</th><th>Jenis</th><th>Target</th><th>Progress</th><th>Status</th></tr></thead><tbody>
     ${state.tugas.slice(-5).reverse().map(t=>{const p=getProgress(t.id);return`<tr><td><strong>${t.judul}</strong></td><td><span class="badge badge-blue">${t.jenis}</span></td><td>${namaTarget(t)}</td><td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:${p.pct}%"></div></div><span class="progress-label">${p.pct}%</span></div></td><td><span class="badge ${t.status==='Selesai'?'badge-green':'badge-yellow'}">${t.status||'Aktif'}</span></td></tr>`}).join('')}
     </tbody></table>`}</div>
+    
+    <!-- BIMBINGAN TERAKHIR -->
     <div class="card"><div class="card-header"><h3>🧑‍🏫 Bimbingan Terakhir</h3></div>
     ${state.bimbingan.length===0?'<p class="text-muted">Belum ada bimbingan.</p>':`
     <table><thead><tr><th>Tanggal</th><th>Tugas</th><th>Progress</th><th>Status</th></tr></thead><tbody>
@@ -152,7 +296,9 @@ function dashboard(el){
     </tbody></table>`}</div>`;
 }
 
-// ---------- MAHASISWA ----------
+// ============================================================
+//  MAHASISWA
+// ============================================================
 function mahasiswa(el){
     el.innerHTML=`
     <div class="flex-between"><div><div class="page-title">👨‍🎓 Mahasiswa</div><div class="page-sub">Kelola data mahasiswa</div></div><button class="btn btn-primary" onclick="showFormMhs()">+ Tambah</button></div>
@@ -176,11 +322,15 @@ window.simpanMhs=function(id){
     const npm=document.getElementById('fm_npm').value.trim(),nama=document.getElementById('fm_nama').value.trim(),kelas=document.getElementById('fm_kelas').value.trim(),email=document.getElementById('fm_email').value.trim(),status=document.getElementById('fm_status').value;
     if(!npm||!nama){alert('NPM dan Nama wajib diisi.');return}
     if(id){const m=findMhs(id);if(m)Object.assign(m,{npm,nama,kelas,email,status})}else state.mahasiswa.push({id:genId(),npm,nama,kelas,email,status});
-    saveAll();render('mahasiswa');
+    saveAll();
+    document.getElementById('formMhsContainer').innerHTML='';
+    render('mahasiswa');
 };
 window.hapusMhs=function(id){if(!confirm('Hapus mahasiswa?'))return;state.mahasiswa=state.mahasiswa.filter(m=>m.id!==id);saveAll();render('mahasiswa')};
 
-// ---------- KELOMPOK ----------
+// ============================================================
+//  KELOMPOK
+// ============================================================
 function kelompok(el){
     el.innerHTML=`
     <div class="flex-between"><div><div class="page-title">👥 Kelompok</div><div class="page-sub">Kelompok mahasiswa</div></div><button class="btn btn-primary" onclick="showFormKlp()">+ Tambah</button></div>
@@ -206,11 +356,15 @@ window.simpanKlp=function(id){
     const anggotaIds=Array.from(document.getElementById('fk_anggota').selectedOptions).map(o=>o.value);
     if(!nama||!ketuaId){alert('Nama dan Ketua wajib diisi.');return}
     if(id){const k=findKlp(id);if(k)Object.assign(k,{nama,kelas,ketuaId,anggotaIds})}else state.kelompok.push({id:genId(),nama,kelas,ketuaId,anggotaIds});
-    saveAll();render('kelompok');
+    saveAll();
+    document.getElementById('formKlpContainer').innerHTML='';
+    render('kelompok');
 };
 window.hapusKlp=function(id){if(!confirm('Hapus kelompok?'))return;state.kelompok=state.kelompok.filter(k=>k.id!==id);saveAll();render('kelompok')};
 
-// ---------- MATA KULIAH ----------
+// ============================================================
+//  MATA KULIAH
+// ============================================================
 function matakuliah(el){
     el.innerHTML=`
     <div class="flex-between"><div><div class="page-title">📖 Mata Kuliah</div><div class="page-sub">Daftar mata kuliah</div></div><button class="btn btn-primary" onclick="tambahMatkul()">+ Tambah</button></div>
@@ -221,7 +375,7 @@ window.tambahMatkul=function(){const n=prompt('Nama Mata Kuliah:');if(n&&n.trim(
 window.hapusMatkul=function(n){if(!confirm(`Hapus "${n}"?`))return;state.matakuliah=state.matakuliah.filter(m=>m!==n);saveAll();render('matakuliah')};
 
 // ============================================================
-//  TUGAS - FIXED
+//  TUGAS - FIXED BUG
 // ============================================================
 function tugas(el){
     el.innerHTML=`
@@ -234,25 +388,20 @@ function tugas(el){
 }
 
 window.showFormTugas=function(id){
-    const d=id?findTugas(id):null;
+    // RESET container dulu
     const c=document.getElementById('formTugasContainer');
+    const d=id?findTugas(id):null;
     
-    // Options for mata kuliah
     const mkOpt=state.matakuliah.map(m=>`<option value="${m}" ${d&&d.matakuliah===m?'selected':''}>${m}</option>`).join('');
-    
-    // Options for target (mahasiswa/kelompok)
     const mhsOpt=state.mahasiswa.map(m=>`<option value="${m.id}">${m.nama} (${m.npm})</option>`).join('');
     const klmOpt=state.kelompok.map(k=>`<option value="${k.id}">${k.nama}</option>`).join('');
-    
-    // Determine which options to show based on current target selection
     const currentTarget = d ? d.target : 'Individu';
     const targetOpts = currentTarget === 'Individu' ? mhsOpt : klmOpt;
-    
     const showExtra = d && d.jenis==='Tugas Besar';
     const jenisOpt=JENIS.map(j=>`<option value="${j}" ${d&&d.jenis===j?'selected':''}>${j}</option>`).join('');
     
     c.innerHTML=`
-    <div class="card" style="border:2px solid #3b82f6;">
+    <div class="card" style="border:2px solid #3b82f6;margin-top:16px;">
         <h3>${d?'✎ Edit':'➕ Tambah'} Tugas</h3>
         <div class="form-grid">
             <div class="form-group"><label>Judul *</label><input id="ft_judul" value="${d?d.judul:''}" placeholder="Masukkan judul tugas"/></div>
@@ -306,7 +455,6 @@ window.showFormTugas=function(id){
         </div>
     </div>`;
     
-    // Set selected targetId if editing
     if(d&&d.targetId){
         const sel=document.getElementById('ft_targetId');
         for(let o of sel.options){
@@ -370,7 +518,9 @@ window.hapusTugas=function(id){
     render('tugas');
 };
 
-// ---------- PROGRESS ----------
+// ============================================================
+//  PROGRESS
+// ============================================================
 function progress(el){
     el.innerHTML=`
     <div class="page-title">📈 Progress</div>
@@ -386,7 +536,7 @@ function progress(el){
 window.showFormProgress=function(id){
     const d=id?state.progress.find(p=>p.id===id):null,c=document.getElementById('formProgressContainer');
     const tugasOpt=state.tugas.map(t=>`<option value="${t.id}" ${d&&d.tugasId===t.id?'selected':''}>${t.judul}</option>`).join('');
-    c.innerHTML=`<div class="card" style="border:2px solid #3b82f6;"><h3>${d?'✎ Edit':'➕ Tambah'} Progress</h3><div class="form-grid">
+    c.innerHTML=`<div class="card" style="border:2px solid #3b82f6;margin-top:16px;"><h3>${d?'✎ Edit':'➕ Tambah'} Progress</h3><div class="form-grid">
     <div class="form-group"><label>Tugas</label><select id="fp_tugas">${tugasOpt}</select></div>
     <div class="form-group"><label>Tahapan</label><input id="fp_tahapan" value="${d?d.tahapan:''}" placeholder="Analisis, UI, Testing"/></div>
     <div class="form-group"><label>Persentase</label><input type="number" id="fp_persen" value="${d?d.persen:0}" min="0" max="100"/></div>
@@ -407,11 +557,15 @@ window.simpanProgress=function(id){
 };
 function saveProgressData(id,tugasId,tahapan,persen,status,catatan,fileName,fileData){
     if(id){const p=state.progress.find(x=>x.id===id);if(p){Object.assign(p,{tugasId,tahapan,persen,status,catatan});if(fileName){p.fileName=fileName;p.fileData=fileData}}}else state.progress.push({id:genId(),tugasId,tahapan,persen,status,catatan,fileName:fileName||null,fileData:fileData||null});
-    saveAll();render('progress');
+    saveAll();
+    document.getElementById('formProgressContainer').innerHTML='';
+    render('progress');
 }
 window.hapusProgress=function(id){if(!confirm('Hapus progress?'))return;state.progress=state.progress.filter(p=>p.id!==id);saveAll();render('progress')};
 
-// ---------- BIMBINGAN ----------
+// ============================================================
+//  BIMBINGAN - FIXED BUG
+// ============================================================
 function bimbingan(el){
     el.innerHTML=`
     <div class="flex-between"><div><div class="page-title">🧑‍🏫 Bimbingan</div><div class="page-sub">Catatan bimbingan</div></div><button class="btn btn-primary" onclick="showFormBimbingan()">+ Tambah</button></div>
@@ -424,7 +578,7 @@ function bimbingan(el){
 window.showFormBimbingan=function(id){
     const d=id?state.bimbingan.find(b=>b.id===id):null,c=document.getElementById('formBimbinganContainer');
     const tugasOpt=state.tugas.map(t=>`<option value="${t.id}" ${d&&d.tugasId===t.id?'selected':''}>${t.judul}</option>`).join('');
-    c.innerHTML=`<div class="card" style="border:2px solid #3b82f6;"><h3>${d?'✎ Edit':'➕ Tambah'} Bimbingan</h3><div class="form-grid">
+    c.innerHTML=`<div class="card" style="border:2px solid #3b82f6;margin-top:16px;"><h3>${d?'✎ Edit':'➕ Tambah'} Bimbingan</h3><div class="form-grid">
     <div class="form-group"><label>Tugas</label><select id="fb_tugas">${tugasOpt}</select></div>
     <div class="form-group"><label>Tanggal</label><input type="date" id="fb_tanggal" value="${d?d.tanggal:''}"/></div>
     <div class="form-group"><label>Progress (%)</label><input type="number" id="fb_progress" value="${d?d.progress:0}" min="0" max="100"/></div>
@@ -450,11 +604,15 @@ window.simpanBimbingan=function(id){
 };
 function saveBimbinganData(id,tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline,fileName,fileData){
     if(id){const b=state.bimbingan.find(x=>x.id===id);if(b){Object.assign(b,{tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline});if(fileName){b.fileName=fileName;b.fileData=fileData}}}else state.bimbingan.push({id:genId(),tugasId,tanggal,progress,status,pembahasan,catatan,tindak,deadline,fileName:fileName||null,fileData:fileData||null});
-    saveAll();render('bimbingan');
+    saveAll();
+    document.getElementById('formBimbinganContainer').innerHTML='';
+    render('bimbingan');
 }
 window.hapusBimbingan=function(id){if(!confirm('Hapus bimbingan?'))return;state.bimbingan=state.bimbingan.filter(b=>b.id!==id);saveAll();render('bimbingan')};
 
-// ---------- TIMELINE ----------
+// ============================================================
+//  TIMELINE
+// ============================================================
 function timeline(el){
     el.innerHTML=`
     <div class="page-title">📅 Timeline</div>
@@ -463,7 +621,9 @@ function timeline(el){
     <ul style="list-style:none;padding:0;">${state.tugas.sort((a,b)=>(a.deadline||'').localeCompare(b.deadline||'')).map(t=>{const p=getProgress(t.id),bims=getBimbingan(t.id),last=bims.length?bims[bims.length-1]:null;return`<li style="padding:10px 0;border-bottom:1px solid #e9edf2;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;"><div><strong>${t.judul}</strong> <span class="badge badge-blue">${t.jenis}</span> <span class="text-muted">${t.matakuliah}</span></div><div>Deadline: <strong>${t.deadline||'-'}</strong></div></div><div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#475569;margin-top:4px;"><span>📈 ${p.pct}%</span><span>📝 ${bims.length} bimbingan</span>${last?`<span>🧑‍🏫 Terakhir: ${last.tanggal} — ${last.status}</span>`:''}<span>Target: ${namaTarget(t)}</span></div></li>`}).join('')}</ul>`}</div>`;
 }
 
-// ---------- DEADLINE ----------
+// ============================================================
+//  DEADLINE
+// ============================================================
 function deadline(el){
     const today=new Date().toISOString().slice(0,10);
     const near=state.tugas.filter(t=>t.deadline&&t.deadline>=today&&t.status!=='Selesai').sort((a,b)=>a.deadline.localeCompare(b.deadline));
