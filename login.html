@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIAKAD Lite - Login</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;display:flex;justify-content:center;align-items:center;min-height:100vh}
+        .login-container{background:#fff;border-radius:16px;padding:40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+        .login-container .logo{text-align:center;margin-bottom:32px}
+        .login-container .logo h1{font-size:28px;color:#0f172a}
+        .login-container .logo h1 span{color:#3b82f6}
+        .login-container .logo p{color:#64748b;font-size:14px;margin-top:4px}
+        .form-group{margin-bottom:16px}
+        .form-group label{display:block;font-weight:600;font-size:13px;color:#334155;margin-bottom:4px}
+        .form-group input{width:100%;padding:10px 14px;border:1px solid #d1d9e6;border-radius:8px;font-size:14px;transition:.2s}
+        .form-group input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+        .btn-login{width:100%;padding:12px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:.2s}
+        .btn-login:hover{background:#2563eb}
+        .btn-login:disabled{opacity:.5;cursor:not-allowed}
+        .error-msg{background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none}
+        .footer{text-align:center;margin-top:20px;font-size:12px;color:#94a3b8}
+        .input-group{position:relative}
+        .input-group .toggle-pwd{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;background:none;border:none;font-size:18px;color:#94a3b8}
+        .toast{position:fixed;bottom:20px;right:20px;background:#22c55e;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.3);animation:slideUp .3s ease}
+        @keyframes slideUp{from{transform:translateY(100px);opacity:0}to{transform:translateY(0);opacity:1}}
+        @media(max-width:480px){.login-container{padding:24px;margin:16px}}
+    </style>
+</head>
+<body>
+
+<div class="login-container" id="loginContainer">
+    <div class="logo">
+        <h1>📘 <span>SIAKAD</span> Lite</h1>
+        <p>Sistem Manajemen Tugas Mahasiswa</p>
+    </div>
+    
+    <div class="error-msg" id="errorMsg">❌ Username atau password salah!</div>
+    
+    <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+            <label>👤 Username</label>
+            <input type="text" id="username" placeholder="Masukkan username" value="admin" autofocus />
+        </div>
+        
+        <div class="form-group">
+            <label>🔒 Password</label>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Masukkan password" value="siakad2024" />
+                <button type="button" class="toggle-pwd" onclick="togglePassword()">👁️</button>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn-login" id="loginBtn">🚀 Masuk</button>
+    </form>
+    
+    <div class="footer">
+        <p>🔑 Default: <strong>admin</strong> / <strong>siakad2024</strong></p>
+        <p style="margin-top:4px;font-size:11px;color:#94a3b8;">💡 Bisa diubah di kode (CREDENTIALS)</p>
+    </div>
+</div>
+
+<script>
+    // ================================================================
+    //  🔐 KREDENSIAL LOGIN (GANTI SESUAI KEINGINAN)
+    // ================================================================
+    const CREDENTIALS = {
+        username: 'admin',
+        password: 'siakad2024'
+    };
+
+    // ================================================================
+    //  TOGGLE PASSWORD
+    // ================================================================
+    function togglePassword() {
+        const pwd = document.getElementById('password');
+        pwd.type = pwd.type === 'password' ? 'text' : 'password';
+    }
+
+    // ================================================================
+    //  HANDLE LOGIN
+    // ================================================================
+    function handleLogin(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const errorEl = document.getElementById('errorMsg');
+        const btn = document.getElementById('loginBtn');
+        
+        errorEl.style.display = 'none';
+        btn.disabled = true;
+        btn.textContent = '⏳ Memeriksa...';
+        
+        setTimeout(() => {
+            if (username === CREDENTIALS.username && password === CREDENTIALS.password) {
+                localStorage.setItem('siakad_session', JSON.stringify({
+                    username: username,
+                    loginAt: new Date().toISOString()
+                }));
+                
+                btn.textContent = '✅ Berhasil!';
+                showToast('✅ Selamat datang, ' + username + '!');
+                
+                setTimeout(() => {
+                    window.location.href = 'app.html';
+                }, 500);
+            } else {
+                errorEl.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '🚀 Masuk';
+                document.getElementById('password').focus();
+                document.getElementById('password').select();
+            }
+        }, 600);
+    }
+
+    // ================================================================
+    //  TOAST
+    // ================================================================
+    function showToast(msg) {
+        const old = document.querySelector('.toast');
+        if (old) old.remove();
+        const div = document.createElement('div');
+        div.className = 'toast';
+        div.textContent = msg;
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 3000);
+    }
+
+    // ================================================================
+    //  CEK SESSION (Jika sudah login, langsung masuk)
+    // ================================================================
+    try {
+        const session = JSON.parse(localStorage.getItem('siakad_session'));
+        if (session && session.username === CREDENTIALS.username) {
+            window.location.href = 'app.html';
+        }
+    } catch (e) {}
+
+    // ================================================================
+    //  ENTER KEY UNTUK LOGIN
+    // ================================================================
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+        }
+    });
+</script>
+
+</body>
+</html>
